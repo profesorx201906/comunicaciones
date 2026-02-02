@@ -67,6 +67,7 @@ export default function App() {
   const [error, setError] = useState('')
   const [rows, setRows] = useState([])
   const [filterRespondida, setFilterRespondida] = useState('todos')
+  const [searchQuery, setSearchQuery] = useState('') // Estado para la búsqueda de texto
 
   const keys = useMemo(() => ({
     peticion: normalizeHeader('Petición'),
@@ -98,13 +99,24 @@ export default function App() {
     load()
   }, [csvUrl])
 
+  // Filtrado combinado: por texto de petición Y por estado de respuesta
   const filtered = useMemo(() => {
-    if (filterRespondida === 'todos') return rows
     return rows.filter((r) => {
-      const respondidaValue = isYes(r[keys.respondida])
-      return filterRespondida === 'si' ? respondidaValue : !respondidaValue
+      // 1. Filtro por texto de petición
+      const textMatch = String(r[keys.peticion] ?? '')
+        .toLowerCase()
+        .includes(searchQuery.toLowerCase())
+
+      // 2. Filtro por estado de respondida
+      let statusMatch = true
+      if (filterRespondida !== 'todos') {
+        const fueRespondida = isYes(r[keys.respondida])
+        statusMatch = filterRespondida === 'si' ? fueRespondida : !fueRespondida
+      }
+
+      return textMatch && statusMatch
     })
-  }, [rows, filterRespondida, keys])
+  }, [rows, filterRespondida, searchQuery, keys])
 
   const peticionStyle = {
     width: '500px',
@@ -125,14 +137,26 @@ export default function App() {
       {error && <Alert variant="danger">{error}</Alert>}
 
       <Row className="g-3 align-items-end mb-4">
-        <Col md={4}>
-          <Form.Label>Filtrar por Respondida</Form.Label>
+        {/* Nuevo campo de búsqueda por petición */}
+        <Col md={5}>
+          <Form.Label>Buscar Petición</Form.Label>
+          <Form.Control
+            type="text"
+            placeholder="Escribe para buscar..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            disabled={loading}
+          />
+        </Col>
+
+        <Col md={3}>
+          <Form.Label>Estado</Form.Label>
           <Form.Select 
             value={filterRespondida} 
             onChange={(e) => setFilterRespondida(e.target.value)}
             disabled={loading}
           >
-            <option value="todos">Mostrar Todas</option>
+            <option value="todos">Todas</option>
             <option value="si">Respondidas (Sí)</option>
             <option value="no">Pendientes (No)</option>
           </Form.Select>
@@ -141,7 +165,7 @@ export default function App() {
         <Col>
           <div className="d-flex align-items-center gap-2">
             {loading && <Spinner animation="border" size="sm" />}
-            <span className="text-muted">Total visible:</span>
+            <span className="text-muted">Resultados:</span>
             <Badge bg="primary">{filtered.length}</Badge>
           </div>
         </Col>
@@ -174,12 +198,9 @@ export default function App() {
                 </td>
                 <td>{r[keys.asignado] || ''}</td>
                 <td className="text-center">{dateOnly(r[keys.fecha])}</td>
-                
-                {/* Columna con solo emojis */}
                 <td className="text-center" style={{ fontSize: '1.2rem' }}>
                   {fueRespondida ? '✅' : '❌'}
                 </td>
-
                 <td className="text-center">{dateOnly(r[keys.fechaRespuesta])}</td>
                 <td className="text-center fw-bold">
                   {dias} {dias === 1 ? 'día' : 'días'}
@@ -191,7 +212,7 @@ export default function App() {
           {!loading && filtered.length === 0 && (
             <tr>
               <td colSpan={6} className="text-center text-muted py-4">
-                No hay registros para mostrar.
+                No se encontraron coincidencias.
               </td>
             </tr>
           )}
