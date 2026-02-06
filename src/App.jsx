@@ -100,12 +100,16 @@ export default function App() {
   }, [csvUrl])
 
   // Filtrado combinado: por texto de petición Y por estado de respuesta
+  // Filtrado combinado: por texto en CUALQUIER campo Y por estado de respuesta
   const filtered = useMemo(() => {
     return rows.filter((r) => {
-      // 1. Filtro por texto de petición
-      const textMatch = String(r[keys.peticion] ?? '')
-        .toLowerCase()
-        .includes(searchQuery.toLowerCase())
+      // 1. Filtro por texto en todos los campos de la fila
+      const searchLower = searchQuery.toLowerCase()
+      
+      // Convertimos todos los valores de la fila a string y buscamos la coincidencia
+      const textMatch = Object.values(r).some((value) => 
+        String(value ?? '').toLowerCase().includes(searchLower)
+      )
 
       // 2. Filtro por estado de respondida
       let statusMatch = true
